@@ -1,10 +1,10 @@
 class EstudanteModel{
-  final int matricula;
-  final String nome;
-  final String dataNascimento;
-  final String endereco;
-  final int ano;
-  final String nivelEnsino;
+  late final int matricula;
+  late final String nome;
+  late final String dataNascimento;
+  late final String endereco;
+  late final int ano;
+  late final String nivelEnsino;
 
   EstudanteModel({
      required this.matricula,

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:projeto_api/app/data/http/http_client.dart';
 import 'package:projeto_api/app/data/models/estudante_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../http/exceptions.dart';
 
@@ -21,6 +22,8 @@ abstract class IestudanteRepository{
       );
   Future<void> deleteEstudantes(String matricula);
   Future<void> putEstudantes(String matricula, String chave, String novoValor);
+
+  Future<void> saveEstudante(EstudanteModel estudante);
 }
 
 
@@ -119,7 +122,7 @@ class EstudanteRepository implements IestudanteRepository{
 
       final response = await http.Client().send(request);
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 204) {
         print('Requisição DELETE bem-sucedida');
       }
       else {
@@ -161,10 +164,34 @@ class EstudanteRepository implements IestudanteRepository{
 
 
   }
-  
+
+  @override
+  Future<void> saveEstudante(EstudanteModel estudante) async{
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    Map<String, dynamic> estudanteJson = {
+
+      'matricula': estudante.matricula,
+      'nome' : estudante.nome,
+      'dataNascimento': estudante.dataNascimento,
+      'endereco': estudante.endereco,
+      'ano': estudante.ano,
+      'nivelEnsino': estudante.nivelEnsino
+
+    };
+
+    prefs.setString(estudante.nome, json.encode(estudanteJson));
+
+  }
+
+
   
   
   
   
   
 }
+
+
+
+

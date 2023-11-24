@@ -1,10 +1,14 @@
+import 'dart:math';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:projeto_api/app/data/http/http_client.dart';
+import 'package:projeto_api/app/data/models/estudante_model.dart';
 import 'package:projeto_api/app/data/repositories/estudante_repository.dart';
 import 'package:projeto_api/app/data/repositories/produto_repository.dart';
 import 'package:projeto_api/app/pages/home/stores/estudante_store.dart';
 import 'package:projeto_api/app/pages/home/stores/produto_store.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -19,51 +23,51 @@ class MyHomePage extends StatefulWidget {
 }
 
 
-class BancoLocal{
-
-  _createDatabase() async{
-    final caminhoBanco = await getDatabasesPath();
-    final localBanco = join(caminhoBanco, "banco.db");
-
-    var retorno = await openDatabase(localBanco, version: 1, onCreate: (db, newVersion){
-      String criarTabelas ="""
-      CREATE TABLE Estudante (
-        matricula BIGINT PRIMARY KEY,
-        nome VARCHAR(255) NOT NULL,
-        dataNascimento DATE,
-        endereco VARCHAR(255),
-        ano INT,
-        nivelEnsino VARCHAR(50),
-        materias VARCHAR(255));""";
-
-      db.execute(criarTabelas);
-    });
-
-    print("Está aberto? " + retorno.isOpen.toString());
-
-    print(retorno);
-
-    return retorno;
-
-  }
-
-  _saveFile(String nome, String data, String endereco, String materias, String ano, String nivel) async{
-    Database db = await _createDatabase();
-
-    Map<String, dynamic> dadosUser = {
-      "nome": nome,
-      "data": data,
-      "endereco" : endereco,
-      "materias": materias,
-      "ano": int.parse(ano),
-      "nivelEnsino": nivel
-    };
-
-    int id = await db.insert("Estudante", dadosUser);
-    print("id: ${id}");
-
-  }
-}
+// class BancoLocal{
+//
+//   _createDatabase() async{
+//     final caminhoBanco = await getDatabasesPath();
+//     final localBanco = join(caminhoBanco, "banco.db");
+//
+//     var retorno = await openDatabase(localBanco, version: 1, onCreate: (db, newVersion){
+//       String criarTabelas ="""
+//       CREATE TABLE Estudante (
+//         matricula BIGINT PRIMARY KEY,
+//         nome VARCHAR(255) NOT NULL,
+//         dataNascimento DATE,
+//         endereco VARCHAR(255),
+//         ano INT,
+//         nivelEnsino VARCHAR(50),
+//         materias VARCHAR(255));""";
+//
+//       db.execute(criarTabelas);
+//     });
+//
+//     print("Está aberto? " + retorno.isOpen.toString());
+//
+//     print(retorno);
+//
+//     return retorno;
+//
+//   }
+//
+//   _saveFile(String nome, String data, String endereco, String materias, String ano, String nivel) async{
+//     Database db = await _createDatabase();
+//
+//     Map<String, dynamic> dadosUser = {
+//       "nome": nome,
+//       "data": data,
+//       "endereco" : endereco,
+//       "materias": materias,
+//       "ano": int.parse(ano),
+//       "nivelEnsino": nivel
+//     };
+//
+//     int id = await db.insert("Estudante", dadosUser);
+//     print("id: ${id}");
+//
+//   }
+// }
 
 
 
@@ -87,7 +91,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState(){
     super.initState();
-    store.getProdutos();
+    // store.getProdutos();
     estudanteStore.getEstudantes();
   }
 
@@ -102,7 +106,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (!mounted) return;
 
     setState(() {
-    // TODO
+      estudanteStore.getEstudantes();
     });
 
     ScaffoldMessenger.of(context)
@@ -114,13 +118,18 @@ class _MyHomePageState extends State<MyHomePage> {
       );
   }
 
-  Future<void> _navigateTelaUpdate(BuildContext context, String valor) async {
+  Future<void> _navigateTelaUpdate(BuildContext context, String valor, String nome, String dataNascimento, String endereco, String ano, String nivelEnsino) async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => TelaUpdate(matricula: valor, estudanteStore: estudanteStore)),
+      MaterialPageRoute(builder: (context) => TelaUpdate(matricula: valor, estudanteStore: estudanteStore, nome: nome, dataNascimento: dataNascimento, endereco: endereco, ano: ano, nivelEnsino: nivelEnsino,)),
     );
 
     if (!mounted) return;
+
+    setState(() {
+      estudanteStore.getEstudantes();
+    });
+
 
     ScaffoldMessenger.of(context)
       ..removeCurrentSnackBar()
@@ -135,9 +144,18 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
 
-    void _deletarEstudante(BuildContext context, String matricula) async{
-    estudanteStore.deleteEstudantes(matricula);
-  }
+    void _deletarEstudante(BuildContext context, String matricula, String nome) async{
+      estudanteStore.deleteEstudantes(matricula);
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+
+      prefs.remove(nome);
+
+      setState(() {
+        // Altere o estado aqui
+      });
+
+    }
 
 
 
@@ -149,7 +167,7 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         backgroundColor: Colors.deepPurple,
         title: const Text(
-          "consumindo api",
+          "Cadastro Estudantes",
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -188,9 +206,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
           if(estudanteStore.state.value.isEmpty){
-            return const Center(
-              child: Text(
-                'nenhum item na lombra',
+            return
+            Column(
+              children:[
+                Text(
+                'nenhum item',
                 style: TextStyle(
                   color: Colors.black54,
                   fontWeight: FontWeight.w600,
@@ -198,8 +218,21 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
                 textAlign: TextAlign.center,
               ),
-            );
+                TextButton(
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    elevation: 10,
+                  ),
+                  onPressed: () => _navigateTelaPreenchimento(context, ""),
+                  child: Text("Adicionar estudante", style: TextStyle(color: Colors.white)),
+                ),
+              ]);
           }
+
+
+
+
+
           else {
             return
               ListView(
@@ -213,7 +246,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             ListTile(
                               contentPadding: EdgeInsets.zero,
                               title: Text(
-                                item.nome,
+                                "Nome: ${item.nome}",
                                 style: const TextStyle(
                                   color: Colors.black,
                                   fontWeight: FontWeight.w600,
@@ -224,16 +257,16 @@ class _MyHomePageState extends State<MyHomePage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    item.endereco,
+                                    "Endereço: ${item.endereco}",
                                     style: const TextStyle(
-                                      color: Colors.green,
+                                      color: Colors.indigo,
                                       fontWeight: FontWeight.w600,
                                       fontSize: 20,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    item.nivelEnsino,
+                                    "Nivel de ensino:  ${item.nivelEnsino}",
                                     style: const TextStyle(
                                       color: Colors.black54,
                                       fontWeight: FontWeight.w400,
@@ -250,7 +283,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                           backgroundColor: Colors.red,
                                           elevation: 10,
                                         ),
-                                        onPressed: () => _deletarEstudante(context, item.matricula.toString()),
+                                        onPressed: () => _deletarEstudante(context, item.matricula.toString(), item.nome.toString()),
                                         child: Text("Remover", style: TextStyle(color: Colors.white)),
                                       ),
 
@@ -259,7 +292,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                           backgroundColor: Colors.blueGrey,
                                           elevation: 10,
                                         ),
-                                        onPressed: () => _navigateTelaUpdate(context, item.matricula.toString()),
+                                        onPressed: () => _navigateTelaUpdate(context, item.matricula.toString(), item.nome, item.dataNascimento, item.endereco, item.ano.toString(), item.nivelEnsino),
                                         child: Text("Atualizar dados", style: TextStyle(color: Colors.white)),
                                       ),
 
@@ -297,10 +330,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
 class TelaUpdate extends StatelessWidget{
-  TelaUpdate({super.key, required this.matricula, required this.estudanteStore});
+  TelaUpdate({super.key, required this.estudanteStore, required this.matricula, required this.nome, required this.dataNascimento, required this.endereco, required this.ano, required this.nivelEnsino});
 
+  var dataNascimento;
+  var endereco;
+  var ano;
+  var nivelEnsino;
   var matricula;
+  var nome;
   var estudanteStore;
+  late EstudanteModel estudanteModel;
+
 
   TextEditingController chaveController = TextEditingController();
   TextEditingController valorController = TextEditingController();
@@ -355,7 +395,18 @@ class TelaUpdate extends StatelessWidget{
           onPressed: () => {
             print("FAZENDO UPDATE"),
 
-            estudanteStore.putEstudantes(matricula, chaveController.text, valorController.text)
+            estudanteStore.putEstudantes(matricula, chaveController.text, valorController.text),
+
+            estudanteModel.nome = nome,
+            estudanteModel.matricula = matricula,
+            estudanteModel.dataNascimento = dataNascimento,
+            estudanteModel.endereco = endereco,
+            estudanteModel.nivelEnsino = nivelEnsino,
+            estudanteModel.ano = ano,
+
+            estudanteStore.saveEstudante(estudanteModel),
+
+
 
             // Navigator.pop(context, retorno)
           },
@@ -372,12 +423,6 @@ class TelaUpdate extends StatelessWidget{
     );
 
 
-
-
-
-
-
-
   }
 
 
@@ -392,10 +437,12 @@ class TelaUpdate extends StatelessWidget{
 class TelaPreenche extends StatelessWidget {
   TelaPreenche({super.key, required this.varName, required this.estudanteStore});
 
-  BancoLocal bancoLocal = BancoLocal();
   final String varName;
   var estudanteStore;
   late List<String> materias;
+  late EstudanteModel estudanteModel = EstudanteModel(matricula: 0, nome: "nome", dataNascimento: "dataNascimento", endereco: "endereco", ano: 0, nivelEnsino: "nivelEnsino");
+  GeradorNumeroNaoRepetitivo gerador = GeradorNumeroNaoRepetitivo();
+
 
 
   TextEditingController nomeController = TextEditingController();
@@ -539,16 +586,30 @@ class TelaPreenche extends StatelessWidget {
 
             print("SALVANDO O ARQUIVO NO BANDO DE DADOS"),
 
-            bancoLocal._saveFile(
-              nomeController.text,
-              dataController.text,
-              enderecoController.text,
-              materiasController.text,
-              anoController.text,
-              nivelController.text
-            ),
 
-            // Navigator.pop(context, retorno)
+
+             estudanteModel = EstudanteModel(
+                matricula: gerador.gerarNumeroNaoRepetitivo(1000),
+                nome: nomeController.text,
+                dataNascimento: dataController.text,
+                endereco: enderecoController.text,
+                ano: int.parse(anoController.text),
+                nivelEnsino: nivelController.text
+             ),
+
+            estudanteStore.saveEstudante(estudanteModel),
+
+
+            // bancoLocal._saveFile(
+            //   nomeController.text,
+            //   dataController.text,
+            //   enderecoController.text,
+            //   materiasController.text,
+            //   anoController.text,
+            //   nivelController.text
+            // ),
+
+            // Navigator.pop(context),
           },
           style: TextButton.styleFrom(
             backgroundColor: Colors.blueGrey.shade400,
@@ -563,6 +624,29 @@ class TelaPreenche extends StatelessWidget {
     );
   }
 }
+
+
+
+class GeradorNumeroNaoRepetitivo {
+  Set<int> _numerosGerados = Set<int>();
+
+  int gerarNumeroNaoRepetitivo(int limite) {
+    if (_numerosGerados.length == limite) {
+      throw Exception('Todos os números possíveis já foram gerados');
+    }
+
+    int numero;
+    do {
+      numero = Random().nextInt(limite);
+    }
+    while (_numerosGerados.contains(numero));
+
+    _numerosGerados.add(numero);
+
+    return numero;
+  }
+}
+
 
 
 

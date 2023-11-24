@@ -53,6 +53,16 @@ class EstudanteStore{
     isLoading.value = false;
   }
 
+  Future saveEstudante(EstudanteModel estudante) async{
+    isLoading.value = true;
+
+    await repository.saveEstudante(estudante);
+
+    isLoading.value = false;
+  }
+
+
+
 
 
 }
